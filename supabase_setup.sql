@@ -101,3 +101,45 @@ CREATE INDEX IF NOT EXISTS idx_prev_constraints_year_month ON prev_month_constra
 -- ============================================
 ALTER TABLE hcu_nurses ADD COLUMN IF NOT EXISTS display_order INTEGER DEFAULT 0;
 ALTER TABLE emergency_nurses ADD COLUMN IF NOT EXISTS display_order INTEGER DEFAULT 0;
+
+-- ============================================
+-- マイグレーション: 変更履歴ログ（audit_log）
+-- ============================================
+CREATE TABLE IF NOT EXISTS hcu_audit_log (
+  id SERIAL PRIMARY KEY,
+  action TEXT NOT NULL,
+  user_type TEXT NOT NULL DEFAULT 'admin',
+  user_name TEXT,
+  nurse_id INTEGER,
+  nurse_name TEXT,
+  year INTEGER,
+  month INTEGER,
+  day INTEGER,
+  old_value TEXT,
+  new_value TEXT,
+  details TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS emergency_audit_log (
+  id SERIAL PRIMARY KEY,
+  action TEXT NOT NULL,
+  user_type TEXT NOT NULL DEFAULT 'admin',
+  user_name TEXT,
+  nurse_id INTEGER,
+  nurse_name TEXT,
+  year INTEGER,
+  month INTEGER,
+  day INTEGER,
+  old_value TEXT,
+  new_value TEXT,
+  details TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE hcu_audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE emergency_audit_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all hcu_audit_log" ON hcu_audit_log FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all emergency_audit_log" ON emergency_audit_log FOR ALL USING (true) WITH CHECK (true);
+CREATE INDEX IF NOT EXISTS idx_hcu_audit_created ON hcu_audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_emergency_audit_created ON emergency_audit_log(created_at DESC);
