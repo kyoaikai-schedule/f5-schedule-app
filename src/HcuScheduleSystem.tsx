@@ -238,6 +238,8 @@ const HcuScheduleSystem = ({ department = 'HCU', onBack }: { department?: 'HCU' 
   const [staffNurseId, setStaffNurseId] = useState(null);
   const [staffCode, setStaffCode] = useState('');
   const [staffError, setStaffError] = useState('');
+  const [adminAsStaff, setAdminAsStaff] = useState(false);
+  const [showDevLogin, setShowDevLogin] = useState(false);
   
   // ローディング状態
   const [isLoading, setIsLoading] = useState(true);
@@ -2472,7 +2474,12 @@ const HcuScheduleSystem = ({ department = 'HCU', onBack }: { department?: 'HCU' 
   const handleStaffLogout = () => {
     setStaffNurseId(null);
     setStaffCode('');
-    setSystemMode('select');
+    if (adminAsStaff) {
+      setAdminAsStaff(false);
+      setSystemMode('dashboard');
+    } else {
+      setSystemMode('select');
+    }
   };
 
   const updateRequest = (day: any, value: any) => {
@@ -2507,9 +2514,9 @@ const HcuScheduleSystem = ({ department = 'HCU', onBack }: { department?: 'HCU' 
     const monthKey = `${targetYear}-${targetMonth}`;
     const nurseIdKey = String(staffNurseId);
 
-    // 希望上限チェック（新しい希望を追加する操作のみ）
+    // 希望上限チェック（新しい希望を追加する操作のみ、管理者モードはスキップ）
     const maxReq = staffNurseId ? (nurseShiftPrefs[staffNurseId]?.maxRequests || 0) : 0;
-    if (maxReq > 0) {
+    if (maxReq > 0 && !adminAsStaff) {
       const currentReqs = requests[monthKey]?.[nurseIdKey] || {};
       const currentVal = currentReqs[day] || null;
       // 空セルからの新規追加の場合のみチェック
@@ -2765,6 +2772,9 @@ const HcuScheduleSystem = ({ department = 'HCU', onBack }: { department?: 'HCU' 
                 <p className="text-sm text-gray-500">ダッシュボード</p>
               </div>
               <div className="flex flex-wrap gap-2">
+                <button onClick={() => setShowDevLogin(true)} className="px-3 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-sm flex items-center gap-1">
+                  <Eye size={16} /> 職員画面確認
+                </button>
                 <button onClick={() => setShowSettings(!showSettings)} className={`px-3 py-2 rounded-lg text-sm flex items-center gap-1 ${showSettings ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 hover:bg-gray-200'}`}>
                   <Settings size={16} /> 職員管理
                 </button>
@@ -2995,6 +3005,39 @@ const HcuScheduleSystem = ({ department = 'HCU', onBack }: { department?: 'HCU' 
                   className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
                   設定を保存
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 職員画面確認モーダル */}
+        {showDevLogin && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold">🔧 職員画面確認（管理者モード）</h3>
+                <button onClick={() => setShowDevLogin(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                  <X size={20} />
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">管理者として職員の希望入力画面を確認・操作できます。</p>
+              <div className="max-h-[60vh] overflow-auto space-y-1">
+                {activeNurses.map(nurse => (
+                  <button
+                    key={nurse.id}
+                    onClick={async () => {
+                      setStaffNurseId(nurse.id);
+                      setAdminAsStaff(true);
+                      setShowDevLogin(false);
+                      setSystemMode('staff');
+                      await reloadRequestsFromDB();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-purple-50 transition-colors text-left"
+                  >
+                    <span className="font-medium">{nurse.name}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded ${POSITIONS[nurse.position]?.color}`}>{nurse.position}</span>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -3323,7 +3366,10 @@ const HcuScheduleSystem = ({ department = 'HCU', onBack }: { department?: 'HCU' 
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-5 mb-6 border border-white/50">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <h1 className="text-xl md:text-2xl font-bold text-gray-800">{nurse.name}さん</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl md:text-2xl font-bold text-gray-800">{nurse.name}さん</h1>
+                  {adminAsStaff && <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-bold">管理者モード</span>}
+                </div>
                 <p className="text-lg font-bold text-emerald-600">{targetYear}年{targetMonth + 1}月の休み希望入力</p>
               </div>
               <button
@@ -3331,7 +3377,7 @@ const HcuScheduleSystem = ({ department = 'HCU', onBack }: { department?: 'HCU' 
                 className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center gap-2 transition-colors self-start"
               >
                 <LogOut size={18} />
-                終了
+                {adminAsStaff ? 'ダッシュボードに戻る' : '終了'}
               </button>
             </div>
           </div>
